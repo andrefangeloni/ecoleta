@@ -1,7 +1,14 @@
-import React, { useEffect, useState, ChangeEvent } from 'react';
-import { Link } from 'react-router-dom';
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  ChangeEvent,
+  FormEvent,
+} from 'react';
+import { Link, useHistory } from 'react-router-dom';
 import { FiArrowLeft } from 'react-icons/fi';
 import { Map, TileLayer, Marker } from 'react-leaflet';
+import { LeafletMouseEvent } from 'leaflet';
 
 import api from '../../services/api';
 import ibge from '../../services/ibge';
@@ -30,15 +37,30 @@ const CreatePoint = () => {
   const [cities, setCities] = useState<string[]>([]);
   const [selectedUF, setSelectedUF] = useState('0');
   const [selectedCity, setSelectedCity] = useState('0');
+  const [selectedItems, setSelectedItems] = useState<number[]>([]);
+  const [initialPosition, setInitialPosition] = useState<[number, number]>([0, 0]);
+  const [selectedPosition, setSelectedPosition] = useState<[number, number]>([0, 0]);
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    whatsapp: '',
+  });
+
+  const history = useHistory();
 
   useEffect(() => {
-    loadItems();
     loadUFs();
+    loadItems();
+    loadInitialPosition();
   }, []);
 
-  useEffect(() => {
-    loadCities();
-  }, [selectedUF]);
+  const loadInitialPosition = () => {
+    navigator.geolocation.getCurrentPosition((position) => {
+      const { latitude, longitude } = position.coords;
+      setInitialPosition([latitude, longitude]);
+      setSelectedPosition([latitude, longitude]);
+    });
+  };
 
   const loadItems = async () => {
     const { data } = await api.get('/items');
@@ -51,13 +73,17 @@ const CreatePoint = () => {
     setUfs(ufInitials);
   };
 
-  const loadCities = async () => {
+  const loadCities = useCallback(async () => {
     const { data } = await ibge.get<City[]>(
       `/api/v1/localidades/estados/${selectedUF}/municipios`,
     );
     const cityName = data.map((city) => city.nome);
     setCities(cityName);
-  };
+  }, [selectedUF]);
+
+  useEffect(() => {
+    loadCities();
+  }, [selectedUF, loadCities]);
 
   const onSelectedUF = (e: ChangeEvent<HTMLSelectElement>) => {
     setSelectedUF(e.target.value);
@@ -67,10 +93,55 @@ const CreatePoint = () => {
     setSelectedCity(e.target.value);
   };
 
+  const onMapClicked = (e: LeafletMouseEvent) => {
+    setSelectedPosition([e.latlng.lat, e.latlng.lng]);
+  };
+
+  const onInputChanged = (e: ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData({ ...formData, [name]: value });
+  };
+
+  const onSelectedItem = (id: number) => {
+    const alreadySelected = selectedItems.findIndex((item) => item === id);
+
+    if (alreadySelected >= 0) {
+      const filteredItems = selectedItems.filter((item) => item !== id);
+      setSelectedItems(filteredItems);
+    } else {
+      setSelectedItems([...selectedItems, id]);
+    }
+  };
+
+  const onDataSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+
+    try {
+      const data = {
+        name: formData.name,
+        email: formData.email,
+        whatsapp: formData.whatsapp,
+        uf: selectedUF,
+        city: selectedCity,
+        latitude: selectedPosition[0],
+        longitude: selectedPosition[1],
+        items: selectedItems,
+      }
+  
+      await api.post('/points', data);
+
+      history.push('/');
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
   return (
     <div id="page-create-point">
       <header>
-        <img src={logo} alt="Ecoleta" />
+        <Link to="/">
+          <img src={logo} alt="Ecoleta" />
+        </Link>
 
         <Link to="/">
           <FiArrowLeft />
@@ -78,7 +149,7 @@ const CreatePoint = () => {
         </Link>
       </header>
 
-      <form>
+      <form onSubmit={(e) => onDataSubmit(e)}>
         <h1>
           Cadastro do <br /> ponto de coleta
         </h1>
@@ -90,17 +161,33 @@ const CreatePoint = () => {
 
           <div className="field">
             <label htmlFor="name">Nome da entidade</label>
-            <input type="text" id="name" name="name" />
+            <input
+              type="text"
+              id="name"
+              name="name"
+              onChange={(e) => onInputChanged(e)}
+            />
           </div>
 
           <div className="field-group">
             <div className="field">
               <label htmlFor="email">E-mail</label>
-              <input type="text" id="email" name="email" />
+              <input
+                type="text"
+                id="email"
+                name="email"
+                onChange={(e) => onInputChanged(e)}
+              />
             </div>
             <div className="field">
               <label htmlFor="name">WhatsApp</label>
-              <input type="text" id="whatsapp" name="whatsapp" />
+              <input
+                type="text"
+                id="whatsapp"
+                name="whatsapp"
+                onChange={(e) => onInputChanged(e)}
+                maxLength={11}
+              />
             </div>
           </div>
         </fieldset>
@@ -111,13 +198,17 @@ const CreatePoint = () => {
             <span>Selecione o endereço no mapa</span>
           </legend>
 
-          <Map center={[-22.9213693, -47.0097278]} zoom={15}>
+          <Map
+            center={initialPosition}
+            zoom={15}
+            onClick={(e: any) => onMapClicked(e)}
+          >
             <TileLayer
               attribution='&amp;copy <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
-            <Marker position={[-22.9213693, -47.0097278]} />
+            <Marker position={selectedPosition} />
           </Map>
 
           <div className="field-group">
@@ -158,13 +249,17 @@ const CreatePoint = () => {
 
         <fieldset>
           <legend>
-            <h2>Ítens de coleta</h2>
+            <h2>Itens de coleta</h2>
             <span>Selecione um ou mais itens abaixo</span>
           </legend>
 
           <ul className="items-grid">
             {items.map((item) => (
-              <li key={item.id}>
+              <li
+                key={item.id}
+                className={selectedItems.includes(item.id) ? 'selected' : ''}
+                onClick={() => onSelectedItem(item.id)}
+              >
                 <img src={item.image_url} alt={item.title} />
                 <span>{item.title}</span>
               </li>
