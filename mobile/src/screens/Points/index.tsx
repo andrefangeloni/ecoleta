@@ -2,12 +2,13 @@ import React from 'react';
 import {
   View,
   Text,
+  Image,
   ScrollView,
   SafeAreaView,
   TouchableOpacity,
 } from 'react-native';
 
-import MapView from 'react-native-maps';
+import MapView, { Marker } from 'react-native-maps';
 import { SvgUri } from 'react-native-svg';
 import { useNavigation } from '@react-navigation/native';
 
@@ -20,6 +21,10 @@ const Points = () => {
 
   const onGoBackScreen = () => {
     navigation.goBack();
+  };
+
+  const onMarkerClicked = () => {
+    navigation.navigate('Details');
   };
 
   return (
@@ -35,7 +40,35 @@ const Points = () => {
         </Text>
 
         <View style={styles.mapContainer}>
-          <MapView style={styles.map} />
+          <MapView
+            style={styles.map}
+            initialRegion={{
+              latitude: -22.917963,
+              longitude: -47.0173247,
+              latitudeDelta: 0.014,
+              longitudeDelta: 0.014,
+            }}
+          >
+            <Marker
+              style={styles.mapMarker}
+              onPress={() => onMarkerClicked()}
+              coordinate={{
+                latitude: -22.917963,
+                longitude: -47.0173247,
+              }}
+            >
+              <View style={styles.mapMarkerContainer}>
+                <Image
+                  style={styles.mapMarkerImage}
+                  source={{
+                    uri:
+                      'https://meiosustentavel.com.br/wp-content/uploads/2019/08/Lixeiras-Reciclaveis-01-1024x568.png',
+                  }}
+                />
+                <Text style={styles.mapMarkerTitle}>Reciclagem</Text>
+              </View>
+            </Marker>
+          </MapView>
         </View>
       </SafeAreaView>
       <View style={styles.itemsContainer}>
