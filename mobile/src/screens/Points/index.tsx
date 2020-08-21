@@ -39,8 +39,17 @@ interface Item {
   image_url: string;
 }
 
+interface Point {
+  id: number;
+  name: string;
+  image: string;
+  latitude: number;
+  longitude: number;
+}
+
 const Points = () => {
   const [items, setItems] = useState<Item[]>([]);
+  const [points, setPoints] = useState<Point[]>([]);
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [initialPosition, setInitialPosition] = useState<[number, number]>([
     0,
@@ -53,11 +62,17 @@ const Points = () => {
 
   useEffect(() => {
     loadItems();
+    loadPoints();
   }, []);
 
   const loadItems = async () => {
     const { data } = await api.get('/items');
     setItems(data);
+  };
+
+  const loadPoints = async () => {
+    const { data } = await api.get('/points');
+    setPoints(data);
   };
 
   useEffect(() => {
@@ -121,8 +136,8 @@ const Points = () => {
     navigation.goBack();
   };
 
-  const onMarkerClicked = () => {
-    navigation.navigate('Details');
+  const onMarkerClicked = (id: number) => {
+    navigation.navigate('Details', { point_id: id });
   };
 
   const onSelectedItem = (id: number) => {
@@ -156,30 +171,30 @@ const Points = () => {
             initialRegion={{
               latitude: initialPosition[0],
               longitude: initialPosition[1],
-              latitudeDelta: 0.014,
-              longitudeDelta: 0.014,
+              latitudeDelta: LATITUDE_DELTA,
+              longitudeDelta: LONGITUDE_DELTA,
             }}
             ref={mapRef}
           >
-            <Marker
-              style={styles.mapMarker}
-              onPress={() => onMarkerClicked()}
-              coordinate={{
-                latitude: initialPosition[0],
-                longitude: initialPosition[1],
-              }}
-            >
-              <View style={styles.mapMarkerContainer}>
-                <Image
-                  style={styles.mapMarkerImage}
-                  source={{
-                    uri:
-                      'https://meiosustentavel.com.br/wp-content/uploads/2019/08/Lixeiras-Reciclaveis-01-1024x568.png',
-                  }}
-                />
-                <Text style={styles.mapMarkerTitle}>Reciclagem</Text>
-              </View>
-            </Marker>
+            {points.map((point) => (
+              <Marker
+                key={String(point.id)}
+                style={styles.mapMarker}
+                onPress={() => onMarkerClicked(point.id)}
+                coordinate={{
+                  latitude: point.latitude,
+                  longitude: point.longitude,
+                }}
+              >
+                <View style={styles.mapMarkerContainer}>
+                  <Image
+                    style={styles.mapMarkerImage}
+                    source={{ uri: point.image }}
+                  />
+                  <Text style={styles.mapMarkerTitle}>{point.name}</Text>
+                </View>
+              </Marker>
+            ))}
           </MapView>
         </View>
       </SafeAreaView>
