@@ -10,12 +10,14 @@ import { FiArrowLeft } from 'react-icons/fi';
 import { Map, TileLayer, Marker } from 'react-leaflet';
 import { LeafletMouseEvent } from 'leaflet';
 
+import Dropzone from '../../components/Dropzone';
+
 import api from '../../services/api';
 import ibge from '../../services/ibge';
 
 import logo from '../../assets/logo.svg';
 
-import './CreatePoint.css';
+import './styles.css';
 
 interface Item {
   id: number;
@@ -37,6 +39,7 @@ const CreatePoint = () => {
   const [cities, setCities] = useState<string[]>([]);
   const [selectedUF, setSelectedUF] = useState('0');
   const [selectedCity, setSelectedCity] = useState('0');
+  const [selectedFile, setSelectedFile] = useState<File>();
   const [selectedItems, setSelectedItems] = useState<number[]>([]);
   const [initialPosition, setInitialPosition] = useState<[number, number]>([0, 0]);
   const [selectedPosition, setSelectedPosition] = useState<[number, number]>([0, 0]);
@@ -116,18 +119,25 @@ const CreatePoint = () => {
   const onDataSubmit = async (e: FormEvent) => {
     e.preventDefault();
 
+    const { name, email, whatsapp } = formData;
+    const [latitude, longitude] = selectedPosition;
+
     try {
-      const data = {
-        name: formData.name,
-        email: formData.email,
-        whatsapp: formData.whatsapp,
-        uf: selectedUF,
-        city: selectedCity,
-        latitude: selectedPosition[0],
-        longitude: selectedPosition[1],
-        items: selectedItems,
-      }
-  
+      const data = new FormData();
+
+        data.append('name', name);
+        data.append('email', email);
+        data.append('whatsapp', whatsapp);
+        data.append('uf', selectedUF);
+        data.append('city', selectedCity);
+        data.append('latitude', String(latitude));
+        data.append('longitude', String(longitude));
+        data.append('items', selectedItems.join(','));
+
+        if (selectedFile) {
+          data.append('image', selectedFile);
+        }
+      
       await api.post('/points', data);
 
       history.push('/');
@@ -153,6 +163,8 @@ const CreatePoint = () => {
         <h1>
           Cadastro do <br /> ponto de coleta
         </h1>
+
+        <Dropzone onFileUploaded={setSelectedFile} />
 
         <fieldset>
           <legend>

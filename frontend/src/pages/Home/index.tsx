@@ -4,7 +4,7 @@ import { FiLogIn } from 'react-icons/fi';
 
 import logo from '../../assets/logo.svg';
 
-import './Home.css';
+import './styles.css';
 
 const Home = () => {
   return (
